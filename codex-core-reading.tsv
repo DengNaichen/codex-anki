@@ -1,0 +1,54 @@
+Rust 里的 crate 是什么？	crate 是一个包、库或编译单元，类似 Python package 或 npm package，不是 class。	rust::module
+这个项目里的 codex-core 是什么？	codex-core 是核心 Rust crate，目录是 codex-rs/core，负责 agent 主循环、上下文、工具、会话等核心逻辑。	codex::core
+Rust 里的 module 是什么？	module 是 crate 内部的命名空间和文件组织，比如 codex_core::session::turn。	rust::module
+session 是 crate 吗？	不是。session 是 codex-core crate 里的 module。	codex::module
+turn.rs 的完整位置怎么理解？	它属于 codex-core crate 下的 session::turn module，路径是 codex-rs/core/src/session/turn.rs。	codex::module
+pub 是什么意思？	pub 表示公开可见；Rust 默认私有，只有写 pub 才对外暴露。	rust::visibility
+pub(crate) 是什么意思？	只在当前 crate 内公开。比如 pub(crate) fn run_turn 只能在 codex-core 内部用。	rust::visibility
+pub(super) 是什么意思？	只对父模块可见，比 pub(crate) 更窄。	rust::visibility
+use 是什么？	use 类似 import，把某个路径里的类型、函数或 trait 引入当前文件。	rust::syntax
+crate:: 是什么意思？	crate:: 表示当前 crate 根路径；在 codex-core 里就是 codex-rs/core/src/lib.rs。	rust::path
+super:: 是什么意思？	super:: 表示上一级 module。	rust::path
+std:: 是什么意思？	std:: 表示 Rust 标准库。	rust::path
+Vec<T> 是什么？	Vec<T> 是动态数组或列表，比如 Vec<TurnInput> 表示多个 TurnInput。	rust::types
+Option<T> 是什么？	Option<T> 表示可能有值也可能没有值，只有两种情况：Some(value) 或 None。	rust::types
+Result<T, E> 是什么？	Result<T, E> 表示可能成功也可能失败；成功是 Ok(T)，失败是 Err(E)。	rust::types
+CodexResult<Option<String>> 怎么读？	先看 Result：可能失败；成功时再看 Option：可能有一个 String，也可能没有。	rust::types
+Arc<T> 是什么？	Arc<T> 是共享引用计数指针，常用于 async 或多任务场景下共享同一个对象。	rust::types
+Arc::clone(&sess) 是深拷贝吗？	不是。它只是多拿一个共享引用，不会复制整个 Session。	rust::types
+async fn 是什么？	定义异步函数，函数体里可以 await 异步操作。	rust::async
+.await 是什么？	等待一个异步操作完成。	rust::async
+CancellationToken 是什么？	取消信号，可以用来停止一轮 turn、模型请求或工具执行。	codex::runtime
+child_token() 是什么？	创建子取消信号；父 token 被取消时，子 token 也会被取消。	codex::runtime
+enum 在 Rust 里是什么？	enum 表示一个值可能是几种形态之一，而且每种形态可以携带不同数据。	rust::types
+TurnInput 是什么？	TurnInput 是进入 run_turn 的结构化输入，可能是用户输入、ResponseItem 或 agent 间通信。	codex::input
+TurnInput::UserInput 表示什么？	表示真正的用户输入，里面有 content: Vec<UserInput> 和 client_id。	codex::input
+TurnInput::ResponseItem 表示什么？	表示已经包装成模型消息格式的输入，常用于额外上下文或系统注入。	codex::input
+TurnInput::InterAgentCommunication 表示什么？	表示多 agent 之间的消息。	codex::input
+UserInput 可能有哪些类型？	文本、图片、本地图片、Skill、Mention。	codex::input
+run_turn 的核心职责是什么？	run_turn 是一轮 agent 执行的总控 loop：准备上下文、发模型请求、处理工具调用、决定是否继续。	codex::loop
+run_turn 的 input 参数是什么？	input: Vec<TurnInput>，表示这一轮输入是多个结构化输入项。	codex::loop
+run_turn 开始后先做什么？	先处理预采样 compact，再 capture step context，再记录上下文更新和用户输入。	codex::loop
+RegularTask::run 做什么？	它启动普通 turn，发送 TurnStarted 事件，然后调用 run_turn。	codex::loop
+run_sampling_request 做什么？	它负责一次模型请求：构建工具、构建 prompt、调用 try_run_sampling_request，并处理 retry。	codex::sampling
+build_prompt 做什么？	把 input、tools、base_instructions、output_schema 组装成发给模型的 Prompt。	codex::sampling
+try_run_sampling_request 做什么？	它真正读取模型流式响应，处理 assistant message、reasoning、tool call，并等待工具执行完成。	codex::sampling
+needs_follow_up 表示什么？	表示模型或系统还需要再来一次采样请求，比如工具结果要回传给模型。	codex::loop
+history.for_prompt(...) 做什么？	从会话历史里取出适合当前模型输入模态的 ResponseItem 列表，作为模型请求输入。	codex::context
+上下文注入的核心思想是什么？	首轮注入完整初始上下文，后续根据 baseline 注入 world state 和设置变化的 diff。	codex::context
+ContextManager 管什么？	管理模型可见历史、token 估算、reference context 和 world state baseline。	codex::context
+WorldState 管什么？	管理 AGENTS.md、环境、子 agent、扩展上下文等模型可见状态。	codex::context
+ToolRouter 管什么？	把模型看到的工具 schema 和模型返回的 tool call 路由到内部工具系统。	codex::tool
+ToolRegistry 管什么？	保存具体工具 handler，并负责 dispatch 实际工具调用。	codex::tool
+工具调用链路怎么记？	build tools -> model sees schema -> model emits tool call -> router builds call -> registry dispatches -> output returns to history。	codex::tool
+为什么 tool call 后通常还要继续请求模型？	因为工具只是执行动作，工具结果要写回 history，再让模型基于结果继续推理或回答。	codex::tool
+Plan 工具有哪两套概念？	一套是 update_plan checklist 工具；另一套是 Plan mode 里的 proposed plan 流式解析。	codex::plan
+多 agent 的核心入口是什么？	spawn_agent 工具会进入 AgentControl，再通过 registry 和 thread/session 机制创建子 agent。	codex::agent
+AgentControl 管什么？	管理子 agent 的创建、输入发送、状态查询、中断和会话树控制。	codex::agent
+AgentRegistry 管什么？	记录 agent 元数据、查找关系，并限制 session 里的子 agent 数量。	codex::agent
+读 Codex 源码第一优先级是什么？	先读 loop，再读 tool，再读 context，最后读 compact。	codex::reading
+为什么先读 loop？	loop 是 agent 骨架，决定模型请求、工具执行、历史写回和继续条件如何串起来。	codex::reading
+为什么不要一开始读 TUI？	TUI 是外围展示层；核心 agent 行为在 codex-rs/core。	codex::reading
+这个项目里 Rust 管什么？	Rust 管 Codex 本体：core、TUI、CLI、app-server、工具、上下文、agent 编排、sandbox。	codex::architecture
+这个项目里 Python 管什么？	Python 主要管 SDK、测试、构建和发布脚本，不是核心 agent runtime。	codex::architecture
+monorepo 是什么？	一个仓库里放多个相关项目，比如 Rust 本体、npm 包、Python SDK、TypeScript SDK、脚本和文档。	architecture
